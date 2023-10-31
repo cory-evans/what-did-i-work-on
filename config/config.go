@@ -87,6 +87,7 @@ func SaveConfig(cfg *Config) error {
 	defer configFile.Close()
 
 	encoder := json.NewEncoder(configFile)
+	encoder.SetIndent("", "\t")
 	err = encoder.Encode(cfg)
 	if err != nil {
 		return err
