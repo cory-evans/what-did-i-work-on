@@ -152,10 +152,13 @@ type CommitForRepo struct {
 }
 
 func NewCommitForRepo(gitFolder string, commit *object.Commit) *CommitForRepo {
-
 	parts := strings.Split(gitFolder, string(os.PathSeparator))
 
-	gitFolder = parts[len(parts)-3] + "/" + parts[len(parts)-2]
+	if len(parts) > 2 {
+		gitFolder = parts[len(parts)-3] + "/" + parts[len(parts)-2]
+	} else {
+		gitFolder = parts[len(parts)-2]
+	}
 
 	return &CommitForRepo{
 		RepoName: gitFolder,
