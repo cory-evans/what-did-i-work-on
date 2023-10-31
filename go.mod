@@ -2,7 +2,10 @@ module github.com/cory-evans/what-did-i-work-on
 
 go 1.21.0
 
-require github.com/go-git/go-git/v5 v5.10.0
+require (
+	github.com/go-git/go-git/v5 v5.10.0
+	github.com/spf13/cobra v1.7.0
+)
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
@@ -21,7 +24,6 @@ require (
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/skeema/knownhosts v1.2.0 // indirect
-	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	golang.org/x/crypto v0.14.0 // indirect

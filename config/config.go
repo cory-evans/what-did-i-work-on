@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"path/filepath"
 )
 
 const configDirName = "what_did_i_work_on"
@@ -15,6 +16,29 @@ type Config struct {
 type DirectoryEntry struct {
 	Path           string `json:"path"`
 	MaxSearchDepth int    `json:"max_search_depth"`
+}
+
+func cleanPath(p string) string {
+	if !path.IsAbs(p) {
+		p = path.Join(p)
+	}
+
+	return filepath.Clean(p)
+}
+
+func (cfg *Config) AddPath(p string, maxSearchDepth int) {
+
+	p = cleanPath(p)
+
+	// check to see it already exists
+	for _, d := range cfg.Directories {
+		if d.Path == p {
+			d.MaxSearchDepth = maxSearchDepth
+			return
+		}
+	}
+
+	cfg.Directories = append(cfg.Directories, DirectoryEntry{Path: p, MaxSearchDepth: maxSearchDepth})
 }
 
 func LoadConfig() (*Config, error) {
@@ -34,7 +58,20 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
-	return &Config{}, nil
+	configFile, err := os.Open(path.Join(configDir, "config.json"))
+	if err != nil {
+		return &Config{}, nil
+	}
+
+	decoder := json.NewDecoder(configFile)
+	cfg := &Config{}
+	err = decoder.Decode(cfg)
+	if err != nil {
+		return &Config{}, nil
+	}
+
+	return cfg, nil
+
 }
 
 func SaveConfig(cfg *Config) error {
