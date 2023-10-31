@@ -1,30 +1,53 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/cory-evans/what-did-i-work-on/common"
+	"github.com/cory-evans/what-did-i-work-on/config"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/spf13/cobra"
 )
 
+var logger *slog.Logger
+var cfg *config.Config
+
+func init() {
+	logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
+	c, err := config.LoadConfig()
+	cfg = c
+	common.CheckError(err)
+}
+
 func main() {
+	defer config.SaveConfig(cfg)
+
 	r, err := git.PlainOpen("./")
 	common.CheckError(err)
 
-	ref, err := r.Head()
+	author, err := common.GetAuthorName(r)
 	common.CheckError(err)
 
 	cIter, err := r.Log(&git.LogOptions{
-		From: ref.Hash(),
+		All: true,
 	})
 	common.CheckError(err)
 
-	cIter.ForEach(func(c *object.Commit) error {
-		// common.PrintCommit(c)
+	commits, err := common.GetCommitsByAuthor(cIter, author)
+	common.CheckError(err)
 
-		log.Println(c.Author.Name, c.Author.Email, c.Author.When, c.Message)
-		return nil
-	})
+	for _, c := range commits {
+		logger.Info("commit", "date", c.Author.When.Format("2006-01-02 15:04:05"), "message", c.Message)
+	}
 
+	home, err := os.UserHomeDir()
+	common.CheckError(err)
+
+	logger.Info("user home dir", "dir", home)
+
+	configDir, err := os.UserConfigDir()
+	common.CheckError(err)
+
+	logger.Info("user config dir", "dir", configDir)
 }
