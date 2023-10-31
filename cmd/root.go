@@ -9,12 +9,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/cory-evans/what-did-i-work-on/common"
 	"github.com/cory-evans/what-did-i-work-on/config"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/spf13/cobra"
 )
@@ -39,8 +41,11 @@ to quickly create a Cobra application.`,
 		}
 
 		var commits []*CommitForRepo
+		var headsChecked []*plumbing.Reference
 
 		for _, d := range conf.Directories {
+
+			absDepth := strings.Count(d.Path, string(os.PathSeparator))
 			filepath.WalkDir(d.Path, func(path string, info fs.DirEntry, err error) error {
 				if err != nil {
 					return err
@@ -50,26 +55,54 @@ to quickly create a Cobra application.`,
 					return nil
 				}
 
+				// get depth to see if we should skip
+				depth := strings.Count(path, string(os.PathSeparator))
+				if (depth - absDepth) > (d.MaxSearchDepth + 1) {
+					return filepath.SkipDir
+				}
+
 				// skip these
 				toSkip := []string{"node_modules", "vendor"}
 				for _, skip := range toSkip {
 					if info.Name() == skip {
-						return fs.SkipDir
+						return filepath.SkipDir
 					}
 				}
 
 				if info.Name() == ".git" {
-					cl, err := getCommits(path)
+					r, headRef, err := openRepoAndGetHeadRef(path)
+
+					// cl, headRef, err := getCommits(path)
 					if err != nil {
-						return err
+						return filepath.SkipDir
+					}
+
+					// check to see if we've already checked this head
+					for _, h := range headsChecked {
+						if h.Hash() == headRef.Hash() {
+							return filepath.SkipDir
+						}
+					}
+
+					cl, err := getCommits(path, r, headRef)
+					if err != nil {
+						return filepath.SkipDir
 					}
 
 					commits = append(commits, cl...)
+
+					headsChecked = append(headsChecked, headRef)
+
+					return filepath.SkipDir
 				}
 
 				return nil
 			})
 		}
+
+		sort.Slice(commits, func(i, j int) bool {
+			return commits[i].Commit.Author.When.Before(commits[j].Commit.Author.When)
+		})
 
 		printLogs(commits)
 	},
@@ -107,19 +140,14 @@ func printLogs(commits []*CommitForRepo) {
 	}
 }
 
-func getCommits(gitFolder string) ([]*CommitForRepo, error) {
-	r, err := git.PlainOpen(gitFolder)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-
+func getCommits(gitFolder string, r *git.Repository, ref *plumbing.Reference) ([]*CommitForRepo, error) {
 	now := time.Now()
 	yesterday := now.AddDate(0, 0, -1)
 
 	commits, err := r.Log(&git.LogOptions{
 		All:   true,
 		Since: &yesterday,
+		From:  ref.Hash(),
 	})
 
 	if err != nil {
@@ -165,4 +193,19 @@ func NewCommitForRepo(repoName string, commit *object.Commit) *CommitForRepo {
 		RepoName: repoName,
 		Commit:   commit,
 	}
+}
+
+func openRepoAndGetHeadRef(gitFolder string) (*git.Repository, *plumbing.Reference, error) {
+	r, err := git.PlainOpen(gitFolder)
+	if err != nil {
+		log.Println(err)
+		return nil, nil, err
+	}
+
+	head, err := r.Head()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return r, head, nil
 }
