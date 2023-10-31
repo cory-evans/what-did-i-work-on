@@ -133,13 +133,22 @@ func getCommits(gitFolder string) ([]*CommitForRepo, error) {
 		return nil, err
 	}
 
+	parts := strings.Split(gitFolder, string(os.PathSeparator))
+
+	var repoName string
+	if len(parts) > 2 {
+		repoName = parts[len(parts)-3] + "/" + parts[len(parts)-2]
+	} else {
+		repoName = parts[len(parts)-2]
+	}
+
 	commits.ForEach(func(c *object.Commit) error {
 
 		if c.Author.Name != me {
 			return nil
 		}
 
-		commitList = append(commitList, NewCommitForRepo(gitFolder, c))
+		commitList = append(commitList, NewCommitForRepo(repoName, c))
 		return nil
 	})
 
@@ -151,17 +160,9 @@ type CommitForRepo struct {
 	Commit   *object.Commit
 }
 
-func NewCommitForRepo(gitFolder string, commit *object.Commit) *CommitForRepo {
-	parts := strings.Split(gitFolder, string(os.PathSeparator))
-
-	if len(parts) > 2 {
-		gitFolder = parts[len(parts)-3] + "/" + parts[len(parts)-2]
-	} else {
-		gitFolder = parts[len(parts)-2]
-	}
-
+func NewCommitForRepo(repoName string, commit *object.Commit) *CommitForRepo {
 	return &CommitForRepo{
-		RepoName: gitFolder,
+		RepoName: repoName,
 		Commit:   commit,
 	}
 }
