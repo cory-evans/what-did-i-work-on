@@ -2,35 +2,41 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 
+	"github.com/cory-evans/what-did-i-work-on/config"
 	"github.com/spf13/cobra"
 )
 
 // removeCmd represents the remove command
 var removeCmd = &cobra.Command{
-	Use:   "remove",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "remove [number(s)]",
+	Short: "remove a directory from the config",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("remove called")
+		cfg, err := config.LoadConfig()
+
+		if err != nil {
+			return
+		}
+
+		for _, nStr := range args {
+			n, err := strconv.Atoi(nStr)
+			if err != nil {
+				continue
+			}
+
+			cfg.RemoveNumber(n)
+		}
+
+		err = config.SaveConfig(cfg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	},
+	Args: cobra.MinimumNArgs(1),
 }
 
 func init() {
 	rootCmd.AddCommand(removeCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// removeCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// removeCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
